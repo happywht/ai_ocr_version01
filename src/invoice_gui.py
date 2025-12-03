@@ -366,10 +366,10 @@ class InvoiceOCRGUI:
                               command=self.batch_process)
         batch_btn.grid(row=0, column=3, padx=(0, 10))
 
-        # 字段配置按钮
-        config_btn = ttk.Button(button_frame, text="🔧 字段配置",
-                               command=self.open_field_config)
-        config_btn.grid(row=0, column=4, padx=(0, 10))
+        # 字段更新按钮
+        update_btn = ttk.Button(button_frame, text="🔄 字段更新",
+                               command=self.refresh_fields_display)
+        update_btn.grid(row=0, column=4, padx=(0, 10))
 
         # 清除按钮
         clear_btn = ttk.Button(button_frame, text="🗑️ 清除结果",
@@ -683,26 +683,7 @@ class InvoiceOCRGUI:
         self.progress_var.set("🔄 就绪")
         self.method_var.set("待识别")
 
-    def open_field_config(self):
-        """打开字段配置管理器"""
-        try:
-            from field_config_gui import FieldConfigGUI
-
-            # 隐藏主窗口
-            self.root.withdraw()
-
-            # 创建并运行字段配置GUI，传递父窗口引用
-            config_gui = FieldConfigGUI(parent_window=self.root)
-            config_gui.run()
-
-            # 刷新字段显示
-            self.refresh_fields_display()
-
-        except Exception as e:
-            self.show_error(f"打开字段配置管理器失败: {str(e)}")
-            # 确保主窗口重新显示
-            self.root.deiconify()
-
+  
     def start_ocr_service(self):
         """启动OCR服务"""
         import subprocess
