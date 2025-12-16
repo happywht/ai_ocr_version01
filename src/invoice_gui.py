@@ -366,15 +366,11 @@ class InvoiceOCRGUI:
                               command=self.batch_process)
         batch_btn.grid(row=0, column=3, padx=(0, 10))
 
-        # 字段更新按钮
-        update_btn = ttk.Button(button_frame, text="🔄 字段更新",
-                               command=self.refresh_fields_display)
-        update_btn.grid(row=0, column=4, padx=(0, 10))
-
+        
         # 清除按钮
         clear_btn = ttk.Button(button_frame, text="🗑️ 清除结果",
                               command=self.clear_results)
-        clear_btn.grid(row=0, column=5, padx=(0, 10))
+        clear_btn.grid(row=0, column=4, padx=(0, 10))
 
         # 进度显示
         progress_frame = ttk.Frame(bottom_frame)
