@@ -1,0 +1,160 @@
+{
+  "fields": {
+    "项目名称": {
+      "name": "项目名称",
+      "description": "该图纸的图签部分显示的项目名称",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取该图纸所显示的 项目工程名称",
+      "required": false,
+      "validation_rules": null
+    },
+    "审定人": {
+      "name": "审定人",
+      "description": "图纸图签部分显示的 审定人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 审定人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "审核人": {
+      "name": "审核人",
+      "description": "图纸图签部分显示的 审核人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 审核人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "校核人": {
+      "name": "校核人",
+      "description": "图纸图签部分显示的 校核人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 校核人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "设计人": {
+      "name": "设计人",
+      "description": "图纸图签部分显示的 设计人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 设计人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "绘图人": {
+      "name": "绘图人",
+      "description": "图纸图签部分显示的 绘图人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 绘图人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "项目负责人": {
+      "name": "项目负责人",
+      "description": "图纸图签部分显示的 项目负责人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 项目负责人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "专业负责人": {
+      "name": "专业负责人",
+      "description": "图纸图签部分显示的 专业负责人 字段后填写的 姓名",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 专业负责人 字段后填写的 第一个姓名，若姓名为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "项目编号": {
+      "name": "项目编号",
+      "description": "图纸图签部分显示的 项目编号 字段后填写的 信息",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 项目编号 字段后填写的 信息（仅包含字母、数字和“-”），若为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "图纸编号": {
+      "name": "图纸编号",
+      "description": "图纸图签部分显示的 图纸编号 字段后填写的 信息",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 图纸编号 字段后填写的 信息（仅包含字母、数字和“-”），若为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "设计阶段": {
+      "name": "设计阶段",
+      "description": "图纸图签部分显示的 设计阶段 字段后填写的 信息",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 设计阶段 字段后填写的 信息，若为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "专业": {
+      "name": "专业",
+      "description": "图纸图签部分显示的 专业 字段后填写的 信息",
+      "field_type": "text",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 专业 字段后填写的 信息，若为空，该字段可以为空",
+      "required": true,
+      "validation_rules": null
+    },
+    "出图日期": {
+      "name": "出图日期",
+      "description": "图纸图签部分显示的 出图日期 字段后填写的 信息",
+      "field_type": "date",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 出图日期 字段后填写的 日期，若为空，该字段可以为空",
+      "required": false,
+      "validation_rules": null
+    },
+    "图纸比例": {
+      "name": "图纸比例",
+      "description": "图纸图签部分显示的 图纸比例 字段后填写的 信息",
+      "field_type": "date",
+      "patterns": [],
+      "ai_prompt": "提取图纸图签部分显示的 图纸比例 字段后填写的 信息，若为空，该字段可以为空",
+      "required": false,
+      "validation_rules": null
+    }
+  },
+  "field_names": [
+    "项目名称",
+    "审定人",
+    "审核人",
+    "校核人",
+    "设计人",
+    "绘图人",
+    "项目负责人",
+    "专业负责人",
+    "项目编号",
+    "图纸编号",
+    "设计阶段",
+    "专业",
+    "出图日期",
+    "图纸比例"
+  ],
+  "required_fields": [
+    "审定人",
+    "审核人",
+    "校核人",
+    "设计人",
+    "绘图人",
+    "项目负责人",
+    "专业负责人",
+    "项目编号",
+    "图纸编号",
+    "设计阶段",
+    "专业"
+  ],
+  "total_fields": 14
+}
