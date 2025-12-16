@@ -1108,63 +1108,45 @@ class InvoiceOCRGUI:
         self.progress_var.set("✅ 字段列表已刷新")
 
     def export_results(self):
-        """导出识别结果"""
+        """导出识别结果为Excel文件"""
         if not self.current_result:
             messagebox.showwarning("警告", "没有可导出的结果")
             return
 
-        # 选择导出格式
-        export_window = tk.Toplevel(self.root)
-        export_window.title("导出结果")
-        export_window.geometry("400x200")
-        export_window.transient(self.root)
-        export_window.grab_set()
+        # 直接询问保存位置并导出为Excel
+        file_path = filedialog.asksaveasfilename(
+            title="保存Excel结果",
+            filetypes=[
+                ("Excel文件", "*.xlsx"),
+                ("所有文件", "*.*")
+            ],
+            defaultextension=".xlsx",
+            initialfile=f"发票识别结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        )
 
-        # 标题
-        ttk.Label(export_window, text="选择导出格式:", font=('微软雅黑', 12, 'bold')).pack(pady=10)
+        if not file_path:
+            return
 
-        # 格式选择
-        format_var = tk.StringVar(value="json")
-        formats = [
-            ("JSON格式 (包含完整信息)", "json"),
-            ("TXT格式 (简洁文本)", "txt"),
-            ("CSV格式 (表格数据)", "csv")
-        ]
-
-        if self.excel_enabled:
-            formats.append(("Excel格式 (专业报表，推荐)", "xlsx"))
-
-        for text, value in formats:
-            ttk.Radiobutton(export_window, text=text, variable=format_var, value=value).pack(pady=5)
-
-        # 按钮
-        button_frame = ttk.Frame(export_window)
-        button_frame.pack(pady=20)
-
-        def do_export():
-            file_types = {
-                "json": [("JSON文件", "*.json")],
-                "txt": [("文本文件", "*.txt")],
-                "csv": [("CSV文件", "*.csv")],
-                "xlsx": [("Excel文件", "*.xlsx")]
+        try:
+            # 准备Excel数据
+            excel_data = {
+                '图片路径': self.current_image_path or '',
+                '处理时间': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                '解析方式': self.method_var.get(),
+                'AI置信度': self.ai_confidence,
+                '提取字段': self.current_result.get('提取字段', {})
             }
 
-            file_path = filedialog.asksaveasfilename(
-                title="保存结果",
-                filetypes=file_types[format_var.get()],
-                defaultextension=file_types[format_var.get()][0][1]
-            )
+            # 使用Excel导出器导出
+            if not self.excel_exporter.export_single_invoice(file_path, excel_data, "horizontal"):
+                raise ValueError("Excel文件导出失败")
 
-            if file_path:
-                try:
-                    self.save_results_to_file(file_path, format_var.get())
-                    messagebox.showinfo("成功", f"结果已保存到: {file_path}")
-                    export_window.destroy()
-                except Exception as e:
-                    messagebox.showerror("错误", f"保存失败: {str(e)}")
+            messagebox.showinfo("成功", f"结果已成功导出到:\n{file_path}")
+            self.progress_var.set("✅ Excel导出完成")
 
-        ttk.Button(button_frame, text="导出", command=do_export).pack(side='left', padx=5)
-        ttk.Button(button_frame, text="取消", command=export_window.destroy).pack(side='left', padx=5)
+        except Exception as e:
+            messagebox.showerror("错误", f"Excel导出失败:\n{str(e)}")
+            self.progress_var.set("❌ Excel导出失败")
 
     def save_results_to_file(self, file_path, format_type):
         """保存结果到文件"""
