@@ -3,3 +3,16 @@ Pillow>=8.0.0
 anthropic>=0.60.0
 pypdfium2>=4.30.0
 openpyxl>=3.0.0
+
+# 图纸图签识别增强依赖
+paddlepaddle>=2.5.0
+paddleocr>=2.7.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+sqlite3
+
+# 手写特征提取依赖
+torch>=2.0.0
+torchvision>=0.15.0
+tensorflow>=2.13.0

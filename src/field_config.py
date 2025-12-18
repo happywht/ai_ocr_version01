@@ -31,11 +31,8 @@ class FieldConfigManager:
     def __init__(self, config_path: Optional[str] = None):
         self.logger = logging.getLogger(__name__)
 
-        # 默认配置路径
-        if config_path is None:
-            config_path = os.path.join(os.path.dirname(__file__), '..', 'docs', 'field_configs.json')
-
-        self.config_path = config_path
+        # 统一配置路径处理
+        self.config_path = self._get_config_path(config_path)
         self.fields: Dict[str, FieldDefinition] = {}
 
         # 加载配置
@@ -44,6 +41,78 @@ class FieldConfigManager:
         # 如果没有配置，使用默认配置
         if not self.fields:
             self.load_default_config()
+
+    def _get_config_path(self, config_path: Optional[str] = None) -> str:
+        """
+        获取配置文件路径，确保路径的一致性
+
+        Args:
+            config_path: 指定的配置文件路径，如果为None则使用默认路径
+
+        Returns:
+            标准化的配置文件路径
+        """
+        if config_path:
+            # 如果指定了路径，直接使用
+            return os.path.abspath(config_path)
+
+        # 获取项目根目录
+        current_file = os.path.abspath(__file__)
+        src_dir = os.path.dirname(current_file)
+        project_root = os.path.dirname(src_dir)
+
+        # 优先级顺序的配置文件位置
+        config_candidates = [
+            # 1. 项目根目录下的配置文件
+            os.path.join(project_root, 'peizhi001.json'),
+            os.path.join(project_root, 'tuqian001.json'),
+
+            # 2. docs目录下的配置文件
+            os.path.join(project_root, 'docs', 'field_configs.json'),
+
+            # 3. src目录下的配置文件
+            os.path.join(src_dir, 'field_configs.json'),
+        ]
+
+        # 返回第一个存在的配置文件
+        for candidate in config_candidates:
+            if os.path.exists(candidate):
+                self.logger.info(f"使用配置文件: {candidate}")
+                return os.path.abspath(candidate)
+
+        # 如果都不存在，返回默认路径
+        default_path = os.path.join(project_root, 'docs', 'field_configs.json')
+        self.logger.info(f"配置文件不存在，将使用默认路径: {default_path}")
+        return os.path.abspath(default_path)
+
+    def get_all_available_configs(self) -> List[str]:
+        """
+        获取所有可用的配置文件路径
+
+        Returns:
+            可用配置文件路径列表
+        """
+        current_file = os.path.abspath(__file__)
+        src_dir = os.path.dirname(current_file)
+        project_root = os.path.dirname(src_dir)
+
+        config_patterns = [
+            os.path.join(project_root, '*.json'),
+            os.path.join(project_root, 'docs', '*.json'),
+            os.path.join(src_dir, '*.json'),
+        ]
+
+        available_configs = []
+        for pattern in config_patterns:
+            import glob
+            configs = glob.glob(pattern)
+            # 过滤掉明显不是配置文件的JSON
+            for config in configs:
+                basename = os.path.basename(config)
+                if any(keyword in basename.lower() for keyword in ['config', 'peizhi', 'field', 'tuqian']):
+                    available_configs.append(config)
+
+        return sorted(list(set(available_configs)))
 
     def load_default_config(self):
         """加载默认字段配置"""

@@ -22,11 +22,33 @@ class FieldConfigGUI:
         self.logger = logging.getLogger(__name__)
         self.parent_window = parent_window  # 父窗口引用
 
+        # 关闭回调函数
+        self.on_close_callback = None
+
         # 创建主窗口
-        self.root = tk.Tk()
-        self.root.title("字段配置管理器")
-        self.root.geometry("1000x700")
-        self.root.configure(bg='#f0f0f0')
+        if parent_window:
+            # 如果有父窗口，创建Toplevel窗口
+            self.root = tk.Toplevel(parent_window)
+            self.root.title("字段配置管理器")
+            self.root.geometry("1000x700")
+            self.root.configure(bg='#f0f0f0')
+
+            # 设置窗口模态
+            self.root.transient(parent_window)
+            self.root.grab_set()
+
+            # 居中显示
+            self.center_window(parent_window)
+
+        else:
+            # 如果没有父窗口，创建独立的Tk窗口
+            self.root = tk.Tk()
+            self.root.title("字段配置管理器")
+            self.root.geometry("1000x700")
+            self.root.configure(bg='#f0f0f0')
+
+            # 居中显示到屏幕
+            self.center_window()
 
         # 设置样式
         self.setup_styles()
@@ -39,6 +61,71 @@ class FieldConfigGUI:
 
         # 当前选中的字段
         self.current_field_name = None
+
+        # 绑定窗口关闭事件
+        self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
+
+    def center_window(self, parent=None):
+        """居中显示窗口"""
+        try:
+            self.root.update_idletasks()
+
+            if parent:
+                # 相对于父窗口居中
+                parent_x = parent.winfo_x()
+                parent_y = parent.winfo_y()
+                parent_width = parent.winfo_width()
+                parent_height = parent.winfo_height()
+
+                window_width = self.root.winfo_width()
+                window_height = self.root.winfo_height()
+
+                x = parent_x + (parent_width // 2) - (window_width // 2)
+                y = parent_y + (parent_height // 2) - (window_height // 2)
+            else:
+                # 相对于屏幕居中
+                screen_width = self.root.winfo_screenwidth()
+                screen_height = self.root.winfo_screenheight()
+
+                window_width = self.root.winfo_width()
+                window_height = self.root.winfo_height()
+
+                x = (screen_width // 2) - (window_width // 2)
+                y = (screen_height // 2) - (window_height // 2)
+
+            self.root.geometry(f'{window_width}x{window_height}+{x}+{y}')
+
+        except Exception as e:
+            self.logger.warning(f"窗口居中失败: {e}")
+
+    def on_window_close(self):
+        """窗口关闭事件处理"""
+        try:
+            # 保存当前配置
+            self.save_field_configs()
+
+            # 如果有回调函数，调用它
+            if self.on_close_callback:
+                self.on_close_callback()
+
+        except Exception as e:
+            self.logger.error(f"窗口关闭处理失败: {e}")
+        finally:
+            # 关闭窗口
+            self.root.destroy()
+
+    def save_field_configs(self):
+        """保存所有字段配置到文件"""
+        try:
+            success = field_config_manager.save_config()
+            if success:
+                self.logger.info("字段配置已保存")
+            else:
+                self.logger.warning("字段配置保存失败")
+            return success
+        except Exception as e:
+            self.logger.error(f"保存字段配置时出错: {e}")
+            return False
 
     def setup_styles(self):
         """设置界面样式"""
@@ -186,6 +273,36 @@ class FieldConfigGUI:
             self.field_listbox.insert(tk.END, field_name)
 
         self.status_label.config(text=f"已加载 {len(fields)} 个字段配置")
+
+        # 记录配置加载信息，用于调试
+        self.logger.info(f"配置文件路径: {field_config_manager.config_path}")
+        self.logger.info(f"已加载字段: {list(fields.keys())}")
+
+    def reload_configs(self):
+        """重新加载配置（用于同步其他界面的修改）"""
+        try:
+            # 重新创建FieldConfigManager实例以获取最新配置
+            from field_config import FieldConfigManager
+            global field_config_manager
+            field_config_manager = FieldConfigManager()
+
+            # 重新加载字段列表
+            self.load_field_configs()
+
+            self.status_label.config(text="配置已重新加载", style='Success.TLabel')
+            self.logger.info("配置已重新加载")
+
+        except Exception as e:
+            self.logger.error(f"重新加载配置失败: {e}")
+            self.status_label.config(text=f"重新加载失败: {str(e)}", style='Error.TLabel')
+
+    def notify_parent_of_changes(self):
+        """通知父窗口配置已更改"""
+        if self.parent_window and hasattr(self.parent_window, 'on_field_config_changed'):
+            try:
+                self.parent_window.on_field_config_changed()
+            except Exception as e:
+                self.logger.error(f"通知父窗口配置更改失败: {e}")
 
     def on_field_select(self, event):
         """字段选择事件处理"""
@@ -381,6 +498,10 @@ class FieldConfigGUI:
             if field_config_manager.save_config():
                 self.status_label.config(text=f"已保存字段配置: {field_name}", style='Success.TLabel')
                 self.current_field_name = field_name
+
+                # 通知父窗口配置已更改
+                self.notify_parent_of_changes()
+
             else:
                 messagebox.showerror("错误", "保存配置文件失败")
         else:
@@ -437,13 +558,27 @@ class FieldConfigGUI:
 
     def return_to_main(self):
         """返回主界面"""
-        if self.parent_window:
-            # 销毁当前窗口
-            self.root.destroy()
-            # 显示父窗口
-            self.parent_window.deiconify()
-        else:
-            # 如果没有父窗口，直接销毁
+        try:
+            # 保存当前配置
+            self.save_field_configs()
+
+            # 如果有回调函数，调用它
+            if self.on_close_callback:
+                self.on_close_callback()
+
+            if self.parent_window:
+                # 销毁当前窗口
+                self.root.destroy()
+                # 显示父窗口
+                self.parent_window.deiconify()
+            else:
+                # 如果没有父窗口，直接销毁
+                self.root.destroy()
+
+        except Exception as e:
+            self.logger.error(f"返回主界面失败: {e}")
+            if self.parent_window:
+                self.parent_window.deiconify()
             self.root.destroy()
 
     def run(self):

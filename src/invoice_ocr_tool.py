@@ -183,21 +183,33 @@ class InvoiceOCRTool:
                 try:
                     page = pdf[0]
 
-                    # 渲染页面为图片
+                    # 渲染页面为图片 - 完全无损高分辨率设置
                     bitmap = page.render(
-                        scale=2.0,  # 提高分辨率以获得更好的OCR效果
+                        scale=4.0,  # 超高分辨率，确保零精度损失
                         crop=(0, 0, 0, 0),  # 不裁剪
+                        rotation=0,  # 保持原始方向
+                        greyscale=False,  # 保持彩色
+                        fill_annotation=True,  # 包含注释
+                        fill_forms=True,  # 包含表单
                     )
 
                     # 将渲染的位图转换为PIL Image
                     pil_image = bitmap.to_pil()
 
-                    # 将PIL Image转换为二进制数据
+                    # 将PIL Image转换为完全无损的二进制数据
                     image_stream = io.BytesIO()
-                    pil_image.save(image_stream, format='PNG')
+
+                    # 完全无损保存参数
+                    save_params = {
+                        'format': 'PNG',
+                        'compress_level': 0,  # 无压缩
+                        'optimize': False,      # 不优化
+                    }
+
+                    pil_image.save(image_stream, **save_params)
                     image_data = image_stream.getvalue()
 
-                    self.logger.info("PDF转换为图片成功")
+                    self.logger.info(f"PDF无损转换成功，分辨率: {pil_image.size}, 文件大小: {len(image_data):,} bytes")
 
                     # 清理资源
                     bitmap = None
