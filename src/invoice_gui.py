@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-专用发票OCR识别工具 - GUI优化版本
+专用图纸图签OCR识别工具 - GUI优化版本
 提供用户友好的图形界面，集成AI智能识别功能
 """
 
@@ -27,11 +27,11 @@ except ImportError:
 
 
 class InvoiceOCRGUI:
-    """发票OCR识别工具优化GUI界面"""
+    """图纸图签OCR识别工具优化GUI界面"""
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("发票OCR识别工具 - 老王特供")
+        self.root.title("图纸图签OCR识别工具 - 老王特供")
         self.root.geometry("1400x900")
         self.root.minsize(1000, 700)
 
@@ -135,7 +135,7 @@ class InvoiceOCRGUI:
         header_frame.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 20))
 
         # 主标题
-        title_label = ttk.Label(header_frame, text="发票OCR识别工具", style='Title.TLabel')
+        title_label = ttk.Label(header_frame, text="图纸图签OCR识别工具", style='Title.TLabel')
         title_label.grid(row=0, column=0, sticky=tk.W)
 
         # AI状态标识
@@ -161,7 +161,7 @@ class InvoiceOCRGUI:
         file_frame.columnconfigure(0, weight=1)
 
         # 选择文件按钮
-        select_btn = ttk.Button(file_frame, text="📂 选择发票图片",
+        select_btn = ttk.Button(file_frame, text="📂 选择图纸图片",
                                command=self.select_image, style='Primary.TButton')
         select_btn.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
@@ -208,7 +208,7 @@ class InvoiceOCRGUI:
         preview_frame.columnconfigure(0, weight=1)
 
         self.image_preview_label = ttk.Label(preview_frame,
-                                           text="暂无图片\n\n请选择发票图片进行预览",
+                                           text="暂无图片\n\n请选择图纸图片进行预览",
                                            background='#f8f9fa',
                                            relief='sunken',
                                            anchor='center')
@@ -388,7 +388,7 @@ class InvoiceOCRGUI:
         self.progress_bar.grid(row=0, column=1, sticky=tk.E, padx=(10, 0))
 
     def select_image(self):
-        """选择发票文件"""
+        """选择图纸文件"""
         file_types = [
             ('支持的文件', '*.jpg *.jpeg *.png *.bmp *.tiff *.pdf'),
             ('PDF文件', '*.pdf'),
@@ -399,7 +399,7 @@ class InvoiceOCRGUI:
         ]
 
         file_path = filedialog.askopenfilename(
-            title="选择发票文件",
+            title="选择图纸文件",
             filetypes=file_types
         )
 
@@ -535,7 +535,7 @@ class InvoiceOCRGUI:
     def start_recognition(self):
         """开始OCR识别"""
         if not self.current_image_path:
-            messagebox.showwarning("警告", "请先选择发票图片或PDF文件")
+            messagebox.showwarning("警告", "请先选择图纸图片或PDF文件")
             return
 
         # 禁用识别按钮防止重复操作
@@ -584,7 +584,7 @@ class InvoiceOCRGUI:
         """显示识别结果"""
         if not result:
             self.progress_var.set("❌ 识别失败")
-            messagebox.showerror("错误", "发票识别失败，请检查图片质量")
+            messagebox.showerror("错误", "图纸图签识别失败，请检查图片质量")
             return
 
         self.current_result = result
@@ -612,12 +612,12 @@ class InvoiceOCRGUI:
 
         # 显示提取的字段
         field_status_map = {
-            '发票号码': '✅',
-            '开票日期': '✅',
-            '销售方名称': '✅',
-            '购买方名称': '✅',
-            '合计金额': '✅',
-            '税额': '✅'
+            '项目名称': '✅',
+            '设计人': '✅',
+            '审核人': '✅',
+            '审定人': '✅',
+            '图纸编号': '✅',
+            '出图日期': '✅'
         }
 
         for field_name, field_value in extracted_fields.items():
@@ -655,7 +655,7 @@ class InvoiceOCRGUI:
         self.progress_var.set(f"✅ 识别完成！成功提取 {extracted_count}/{total_fields} 个字段")
 
         # 显示成功消息
-        messagebox.showinfo("成功", f"发票识别完成！\n成功提取 {extracted_count} 个字段")
+        messagebox.showinfo("成功", f"图纸图签识别完成！\n成功提取 {extracted_count} 个字段")
 
     def show_error(self, error_msg):
         """显示错误信息"""
@@ -1087,8 +1087,8 @@ class InvoiceOCRGUI:
             else:
                 # 如果字段配置不可用，显示默认字段
                 default_fields = [
-                    "发票号码", "开票日期", "销售方名称",
-                    "购买方名称", "合计金额", "税额"
+                    "项目名称", "设计人", "审核人",
+                    "审定人", "图纸编号", "出图日期"
                 ]
 
                 for field_name in default_fields:
@@ -1121,7 +1121,7 @@ class InvoiceOCRGUI:
                 ("所有文件", "*.*")
             ],
             defaultextension=".xlsx",
-            initialfile=f"发票识别结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            initialfile=f"图纸图签识别结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         )
 
         if not file_path:
@@ -1172,7 +1172,7 @@ class InvoiceOCRGUI:
 
         elif format_type == "txt":
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write("=== 发票识别结果 ===\n\n")
+                f.write("=== 图纸图签识别结果 ===\n\n")
                 f.write(f"图片路径: {self.current_image_path or 'N/A'}\n")
                 f.write(f"处理时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"解析方式: {self.method_var.get()}\n")
@@ -1212,7 +1212,7 @@ class InvoiceOCRGUI:
     def batch_process(self):
         """批量处理功能"""
         # 选择批量处理的文件目录
-        directory = filedialog.askdirectory(title="选择包含发票图片和PDF的目录")
+        directory = filedialog.askdirectory(title="选择包含图纸图片和PDF的目录")
 
         if not directory:
             return

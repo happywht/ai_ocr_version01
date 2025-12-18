@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GUI启动脚本 - 专用发票OCR识别工具
+GUI启动脚本 - 专用图纸图签OCR识别工具
 快速启动图形界面版本
 """
 
@@ -46,7 +46,7 @@ def install_dependencies(missing_deps):
 
 def main():
     """主函数"""
-    print("=== 专用发票OCR识别工具 ===")
+    print("=== 专用图纸图签OCR识别工具 ===")
     print("正在检查依赖库...")
 
     missing_deps = check_dependencies()

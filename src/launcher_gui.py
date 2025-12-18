@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-专业启动工具UI - 专用发票OCR识别工具
+专业启动工具UI - 专用图纸图签OCR识别工具
 独立的现代化启动界面，不影响功能模块的独立性
 """
 
@@ -19,7 +19,7 @@ class LauncherGUI:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("发票OCR识别工具 - 专业启动台")
+        self.root.title("图纸图签OCR识别工具 - 专业启动台")
         self.root.geometry("900x700")
         self.root.minsize(800, 600)
 
@@ -126,7 +126,7 @@ class LauncherGUI:
         header_frame.columnconfigure(1, weight=1)
 
         # 主标题
-        title_label = ttk.Label(header_frame, text="🚀 发票OCR识别工具", style='Title.TLabel')
+        title_label = ttk.Label(header_frame, text="🚀 图纸图签OCR识别工具", style='Title.TLabel')
         title_label.grid(row=0, column=0, sticky=tk.W)
 
         # 版本信息
@@ -172,11 +172,11 @@ class LauncherGUI:
         modules_frame.columnconfigure(1, weight=1)
         modules_frame.rowconfigure(1, weight=1)
 
-        # 功能1：发票OCR识别GUI
+        # 功能1：图纸图签OCR识别GUI
         self.create_module_card(modules_frame,
                                row=0,
-                               title="📷 发票OCR识别",
-                               description="智能识别发票信息，支持AI增强解析",
+                               title="📷 图纸图签OCR识别",
+                               description="智能识别图纸图签信息，支持AI增强解析",
                                status_var="gui_instance",
                                start_cmd=self.start_gui,
                                stop_cmd=self.stop_gui)
@@ -252,7 +252,7 @@ class LauncherGUI:
 
         # 版权信息
         copyright_label = ttk.Label(footer_frame,
-                                   text="© 2024 专业发票OCR识别工具 - 技术支持版",
+                                   text="© 2024 专业图纸图签OCR识别工具 - 技术支持版",
                                    style='Status.TLabel')
         copyright_label.grid(row=0, column=1, sticky=tk.E)
 
@@ -362,9 +362,9 @@ class LauncherGUI:
             messagebox.showerror("错误", f"启动OCR服务失败: {str(e)}")
 
     def start_gui(self):
-        """启动发票OCR识别GUI"""
+        """启动图纸图签OCR识别GUI"""
         if self.gui_instance is not None:
-            messagebox.showwarning("提示", "发票OCR识别界面已在运行中")
+            messagebox.showwarning("提示", "图纸图签OCR识别界面已在运行中")
             return
 
         def start_gui_thread():
@@ -387,7 +387,7 @@ class LauncherGUI:
                 app.run()
 
             except Exception as e:
-                messagebox.showerror("错误", f"启动发票OCR识别界面失败: {str(e)}")
+                messagebox.showerror("错误", f"启动图纸图签OCR识别界面失败: {str(e)}")
             finally:
                 # 重置实例状态
                 self.gui_instance = None
@@ -398,7 +398,7 @@ class LauncherGUI:
         gui_thread.start()
 
     def stop_gui(self):
-        """停止发票OCR识别GUI"""
+        """停止图纸图签OCR识别GUI"""
         if self.gui_instance is None:
             return
 
@@ -479,7 +479,7 @@ class LauncherGUI:
         # 检查是否有运行中的模块
         running_modules = []
         if self.gui_instance is not None:
-            running_modules.append("发票OCR识别界面")
+            running_modules.append("图纸图签OCR识别界面")
         if self.field_config_instance is not None:
             running_modules.append("字段配置管理器")
 
@@ -513,7 +513,7 @@ class LauncherGUI:
 def main():
     """主函数"""
     try:
-        print("🚀 启动专业发票OCR识别工具启动台...")
+        print("🚀 启动专业图纸图签OCR识别工具启动台...")
 
         # 创建并运行启动台
         launcher = LauncherGUI()
