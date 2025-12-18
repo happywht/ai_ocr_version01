@@ -14,12 +14,8 @@ import numpy as np
 from PIL import Image
 import json
 
-try:
-    from paddleocr import PaddleOCR
-    PADDLEOCR_AVAILABLE = True
-except ImportError:
-    PADDLEOCR_AVAILABLE = False
-    logging.warning("PaddleOCR未安装，将使用传统CV方法")
+# 复用原有OCR功能，不使用PaddleOCR
+PADDLEOCR_AVAILABLE = False
 
 
 class EnhancedSignatureDetector:
@@ -28,21 +24,8 @@ class EnhancedSignatureDetector:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-        # 初始化PaddleOCR
-        if PADDLEOCR_AVAILABLE:
-            try:
-                self.paddle_ocr = PaddleOCR(
-                    use_angle_cls=True,
-                    lang='ch',  # 中文识别
-                    show_log=False,
-                    use_gpu=False  # 可根据实际环境调整
-                )
-                self.logger.info("PaddleOCR初始化成功")
-            except Exception as e:
-                self.logger.error(f"PaddleOCR初始化失败: {e}")
-                self.paddle_ocr = None
-        else:
-            self.paddle_ocr = None
+        # 复用原有OCR服务
+        self.ocr_service_url = "http://127.0.0.1:1224"
 
         # 图签检测参数
         self.detection_params = {
@@ -82,12 +65,11 @@ class EnhancedSignatureDetector:
                 self.logger.info("传统CV方法检测成功")
                 return cv_result
 
-            # 方法2：PaddleOCR检测
-            if self.paddle_ocr:
-                ocr_result = self._detect_by_paddleocr(image, width, height)
-                if ocr_result:
-                    self.logger.info("PaddleOCR方法检测成功")
-                    return ocr_result
+            # 方法2：传统OCR检测（复用原有OCR服务）
+            ocr_result = self._detect_by_original_ocr(image, width, height)
+            if ocr_result:
+                self.logger.info("原有OCR方法检测成功")
+                return ocr_result
 
             # 方法3：比例定位（兜底方案）
             proportion_result = self._detect_by_proportion(width, height)
@@ -282,50 +264,52 @@ class EnhancedSignatureDetector:
         except:
             return 0.0
 
-    def _detect_by_paddleocr(self, image: np.ndarray, width: int, height: int) -> Optional[Tuple[int, int, int, int]]:
-        """基于PaddleOCR的检测方法"""
+    def _detect_by_original_ocr(self, image: np.ndarray, width: int, height: int) -> Optional[Tuple[int, int, int, int]]:
+        """基于原有OCR服务的检测方法"""
         try:
-            if not self.paddle_ocr:
-                return None
+            # 导入原有OCR工具
+            from invoice_ocr_tool import InvoiceOCRTool
 
             # 只检测右下角区域
             roi_x = int(width * (1 - self.detection_params['right_ratio']))
             roi_y = int(height * (1 - self.detection_params['bottom_ratio']))
             roi = image[roi_y:height, roi_x:width]
 
-            # PaddleOCR检测
-            result = self.paddle_ocr.ocr(roi, cls=True)
+            # 保存ROI为临时文件
+            import tempfile
+            import os
 
-            if not result or not result[0]:
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                from PIL import Image
+                roi_pil = Image.fromarray(roi)
+                roi_pil.save(tmp.name)
+                tmp_path = tmp.name
+
+            try:
+                # 使用原有OCR服务
+                ocr_tool = InvoiceOCRTool(self.ocr_service_url)
+                result = ocr_tool.process_invoice(tmp_path)
+
+                if result and result.get('OCR原始结果'):
+                    # 基于OCR结果估算文本区域
+                    ocr_text = result['OCR原始结果']
+
+                    # 简单启发式：如果OCR识别到足够多的文本，认为这是一个有效区域
+                    if len(ocr_text.strip()) > 10:  # 至少10个字符
+                        # 返回ROI的全局坐标
+                        return (roi_x, roi_y, width, height)
+
                 return None
 
-            # 提取文本框坐标
-            boxes = []
-            for line in result[0]:
-                box = line[0]  # 获取文本框坐标
-                # 转换为全局坐标
-                global_box = [(point[0] + roi_x, point[1] + roi_y) for point in box]
-                boxes.append(global_box)
-
-            if boxes:
-                # 计算包含所有文本框的最小矩形
-                all_points = np.array([point for box in boxes for point in box])
-                x_min, y_min = np.min(all_points, axis=0)
-                x_max, y_max = np.max(all_points, axis=0)
-
-                # 添加边距
-                margin = 20
-                left = max(0, int(x_min) - margin)
-                top = max(0, int(y_min) - margin)
-                right = min(width, int(x_max) + margin)
-                bottom = min(height, int(y_max) + margin)
-
-                return (left, top, right, bottom)
-
-            return None
+            finally:
+                # 清理临时文件
+                try:
+                    os.unlink(tmp_path)
+                except:
+                    pass
 
         except Exception as e:
-            self.logger.error(f"PaddleOCR检测失败: {e}")
+            self.logger.error(f"原有OCR检测失败: {e}")
             return None
 
     def _detect_by_proportion(self, width: int, height: int) -> Optional[Tuple[int, int, int, int]]:
@@ -361,32 +345,53 @@ class EnhancedSignatureDetector:
             left, top, right, bottom = table_region
             table_img = image[top:bottom, left:right]
 
-            if self.paddle_ocr:
-                # 使用PaddleOCR的表格识别功能
-                result = self.paddle_ocr.ocr(table_img, cls=True)
+            # 使用原有OCR服务提取表格结构
+            import tempfile
+            import os
+
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                from PIL import Image
+                table_pil = Image.fromarray(table_img)
+                table_pil.save(tmp.name)
+                tmp_path = tmp.name
+
+            try:
+                # 使用原有OCR服务
+                from invoice_ocr_tool import InvoiceOCRTool
+                ocr_tool = InvoiceOCRTool(self.ocr_service_url)
+                result = ocr_tool.process_invoice(tmp_path)
 
                 cells = []
-                if result and result[0]:
-                    for line_idx, line in enumerate(result[0]):
-                        box = line[0]  # 文本框坐标
-                        text = line[1][0]  # 文本内容
-                        confidence = line[1][1]  # 置信度
+                if result and result.get('OCR原始结果'):
+                    ocr_text = result['OCR原始结果']
 
-                        # 转换为全局坐标
-                        global_box = [(point[0] + left, point[1] + top) for point in box]
+                    # 简化处理：将OCR文本按行分割，模拟表格单元格
+                    lines = ocr_text.split('\n')
+                    for line_idx, line in enumerate(lines):
+                        line = line.strip()
+                        if line:
+                            # 估算单元格位置（简化处理）
+                            cell_height = (bottom - top) // max(len(lines), 1)
+                            cell_y = top + line_idx * cell_height
 
-                        cells.append({
-                            'line_index': line_idx,
-                            'box': global_box,
-                            'text': text,
-                            'confidence': confidence,
-                            'center_x': (global_box[0][0] + global_box[2][0]) / 2,
-                            'center_y': (global_box[0][1] + global_box[2][1]) / 2
-                        })
+                            # 创建模拟的单元格信息
+                            cells.append({
+                                'line_index': line_idx,
+                                'box': [(left, cell_y), (right, cell_y), (right, cell_y + cell_height), (left, cell_y + cell_height)],
+                                'text': line,
+                                'confidence': 0.8,  # 默认置信度
+                                'center_x': (left + right) / 2,
+                                'center_y': cell_y + cell_height / 2
+                            })
 
                 return cells
 
-            return []
+            finally:
+                # 清理临时文件
+                try:
+                    os.unlink(tmp_path)
+                except:
+                    pass
 
         except Exception as e:
             self.logger.error(f"表格结构提取失败: {e}")
