@@ -367,6 +367,7 @@ class InvoiceOCRGUI:
         # 操作按钮区域
         button_frame = ttk.Frame(bottom_frame)
         button_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        # 调整权重配置，让按钮自然排列，最后一列占用剩余空间
         button_frame.columnconfigure(5, weight=1)
 
         # 识别按钮
@@ -391,21 +392,20 @@ class InvoiceOCRGUI:
                                        command=self.toggle_ai_mode)
             ai_toggle.grid(row=0, column=2, padx=(0, 10))
 
-        # 导出按钮
+        # 导出按钮 - 重新分配列位置避免与AI切换按钮冲突
         export_btn = ttk.Button(button_frame, text="💾 导出结果",
                                command=self.export_results)
-        export_btn.grid(row=0, column=2, padx=(0, 10))
+        export_btn.grid(row=0, column=3, padx=(0, 10))
 
         # 批量处理按钮
         batch_btn = ttk.Button(button_frame, text="📁 批量处理",
                               command=self.batch_process)
-        batch_btn.grid(row=0, column=3, padx=(0, 10))
+        batch_btn.grid(row=0, column=4, padx=(0, 10))
 
-        
         # 清除按钮
         clear_btn = ttk.Button(button_frame, text="🗑️ 清除结果",
                               command=self.clear_results)
-        clear_btn.grid(row=0, column=4, padx=(0, 10))
+        clear_btn.grid(row=0, column=5, padx=(0, 0))
 
         # 进度显示
         progress_frame = ttk.Frame(bottom_frame)

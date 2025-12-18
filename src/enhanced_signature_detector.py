@@ -51,11 +51,37 @@ class EnhancedSignatureDetector:
         try:
             self.logger.info(f"开始增强图签检测: {image_path}")
 
-            # 读取图像
-            image = cv2.imread(image_path)
-            if image is None:
-                self.logger.error(f"无法读取图像: {image_path}")
-                return None
+            # 检查文件类型并读取图像 - 支持中文路径
+            try:
+                # 检查是否为PDF文件
+                if image_path.lower().endswith('.pdf'):
+                    self.logger.info(f"检测到PDF文件，跳过视觉图签检测: {image_path}")
+                    # 对于PDF文件，直接返回比例定位结果
+                    import os
+                    # 获取PDF页面尺寸（简化处理，假设A4比例）
+                    # 这里我们无法直接获取PDF尺寸，使用默认A4比例
+                    width = 2480  # A4宽度（像素）
+                    height = 3508  # A4高度（像素）
+                    return self._detect_by_proportion(width, height)
+
+                # 使用PIL读取图片，支持中文路径
+                from PIL import Image
+                pil_image = Image.open(image_path)
+                if pil_image.mode == 'RGBA':
+                    pil_image = pil_image.convert('RGB')
+                image = np.array(pil_image)
+                # 转换为OpenCV格式（BGR）
+                if len(image.shape) == 3 and image.shape[2] == 3:
+                    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                self.logger.info(f"使用PIL成功读取图像: {image_path}, 尺寸: {image.shape}")
+            except Exception as pil_error:
+                # 如果PIL失败，尝试OpenCV
+                self.logger.warning(f"PIL读取失败，尝试OpenCV: {pil_error}")
+                image = cv2.imread(image_path)
+                if image is None:
+                    self.logger.error(f"无法读取图像: {image_path}")
+                    return None
+                self.logger.info(f"使用OpenCV成功读取图像: {image_path}, 尺寸: {image.shape}")
 
             height, width = image.shape[:2]
 

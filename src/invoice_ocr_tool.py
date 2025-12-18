@@ -131,13 +131,35 @@ class InvoiceOCRTool:
         """测试OCR服务连接"""
         try:
             # 先尝试访问根路径检查服务是否运行
-            response = self.session.get(f"{self.ocr_url}/", timeout=5)
+            response = self.session.get(f"{self.ocr_url}/", timeout=10)
             if response.status_code == 200:
+                self.logger.info(f"OCR服务根路径访问成功: {response.text.strip()}")
                 return True
 
-            # 如果根路径不可访问，尝试OCR接口（返回405也是正常的）
-            response = self.session.post(f"{self.ocr_url}/api/ocr", timeout=5)
-            return response.status_code in [200, 405]  # 405表示服务运行但不接受空请求
+            # 如果根路径不可访问，尝试OCR接口
+            # 发送空请求，预期收到错误响应（但表示服务正常运行）
+            response = self.session.post(f"{self.ocr_url}/api/ocr", json={}, timeout=10)
+            if response.status_code == 200:
+                try:
+                    result = response.json()
+                    # 检查是否是预期的错误响应（表示API正常工作）
+                    if result.get('code') in [801, 802]:  # 801=请求为空, 802=缺少base64字段
+                        self.logger.info("OCR服务API接口响应正常")
+                        return True
+                    else:
+                        self.logger.warning(f"OCR API返回意外状态码: {result.get('code')}")
+                        return False
+                except ValueError:
+                    # 如果不是JSON响应，但状态码是200，也认为服务正常
+                    self.logger.info("OCR服务响应正常（非JSON格式）")
+                    return True
+            elif response.status_code == 405:
+                # 405表示服务运行但不接受空请求
+                self.logger.info("OCR服务运行正常（405 Method Not Allowed）")
+                return True
+            else:
+                self.logger.warning(f"OCR服务响应异常状态码: {response.status_code}")
+                return False
         except Exception as e:
             self.logger.error(f"OCR服务连接失败: {e}")
             return False
@@ -154,6 +176,27 @@ class InvoiceOCRTool:
         """
         if not os.path.exists(image_path):
             self.logger.error(f"文件不存在: {image_path}")
+            return None
+
+        # 文件大小安全检查（防范恶意攻击，保障OCR精度）
+        try:
+            file_size = os.path.getsize(image_path)
+            # 设置合理的大小限制：
+            # - PDF文件：500MB（大型图纸PDF）
+            # - 图片文件：200MB（高精度扫描图纸）
+            if image_path.lower().endswith('.pdf'):
+                max_size = 500 * 1024 * 1024  # 500MB
+            else:
+                max_size = 200 * 1024 * 1024  # 200MB
+
+            if file_size > max_size:
+                size_mb = file_size / 1024 / 1024
+                max_mb = max_size / 1024 / 1024
+                self.logger.warning(f"文件较大: {size_mb:.1f}MB (限制: {max_mb:.1f}MB)，处理可能较慢但继续尝试")
+                # 注意：这里只警告，不拒绝，保障OCR精度优先
+                self.logger.info("正在处理大文件，请耐心等待...")
+        except OSError as e:
+            self.logger.error(f"无法获取文件大小: {e}")
             return None
 
         try:
@@ -188,9 +231,7 @@ class InvoiceOCRTool:
                         scale=4.0,  # 超高分辨率，确保零精度损失
                         crop=(0, 0, 0, 0),  # 不裁剪
                         rotation=0,  # 保持原始方向
-                        greyscale=False,  # 保持彩色
-                        fill_annotation=True,  # 包含注释
-                        fill_forms=True,  # 包含表单
+                        grayscale=False,  # 保持彩色 - 修复参数名
                     )
 
                     # 将渲染的位图转换为PIL Image
@@ -243,20 +284,56 @@ class InvoiceOCRTool:
                 }
             }
 
-            # 发送JSON请求
-            response = self.session.post(
-                f"{self.ocr_url}/api/ocr",
-                json=request_data,
-                timeout=120  # 增加到120秒，适合处理PDF和复杂图片
-            )
+            # 增强网络异常处理
+            try:
+                response = self.session.post(
+                    f"{self.ocr_url}/api/ocr",
+                    json=request_data,
+                    timeout=120  # 增加到120秒，适合处理PDF和复杂图片
+                )
+            except requests.exceptions.ConnectionError:
+                self.logger.error("OCR服务连接失败，请检查服务是否运行")
+                return None
+            except requests.exceptions.Timeout:
+                self.logger.error("OCR请求超时，请检查网络或稍后重试")
+                return None
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"OCR请求异常: {e}")
+                return None
 
+            # 专门处理HTTP状态码
             if response.status_code == 200:
-                result = response.json()
-                if result.get('code') == 100:  # 成功状态码
-                    return result
-                else:
-                    self.logger.error(f"OCR识别失败: {result.get('data', '未知错误')}")
+                try:
+                    result = response.json()
+                    ocr_code = result.get('code')
+                    ocr_data = result.get('data', '')
+
+                    # 成功状态码：100=识别成功, 101=图片中无文字（但OCR功能正常）
+                    if ocr_code == 100:  # 识别成功
+                        self.logger.info("OCR识别成功")
+                        return result
+                    elif ocr_code == 101:  # 图片中无文字，但OCR功能正常
+                        self.logger.warning(f"OCR完成但未识别到文字: {ocr_data}")
+                        # 返回结果，让上层逻辑处理这种情况
+                        return result
+                    else:
+                        # 其他错误码
+                        error_msg = ocr_data if ocr_data else f"OCR错误码: {ocr_code}"
+                        self.logger.error(f"OCR识别失败: {error_msg}")
+                        return None
+                except ValueError as json_error:
+                    self.logger.error(f"OCR响应JSON解析失败: {json_error}")
+                    self.logger.debug(f"原始响应内容: {response.text}")
                     return None
+            elif response.status_code == 403:
+                self.logger.error("OCR服务拒绝访问（403），可能是权限问题或服务限制")
+                return None
+            elif response.status_code == 429:
+                self.logger.error("OCR请求过于频繁（429），请稍后重试")
+                return None
+            elif response.status_code >= 500:
+                self.logger.error(f"OCR服务器内部错误（{response.status_code}），请稍后重试")
+                return None
             else:
                 self.logger.error(f"OCR请求失败，状态码: {response.status_code}")
                 return None
@@ -452,10 +529,10 @@ class InvoiceOCRTool:
 
         # 5. 金额提取
         amount_patterns = [
-            r'价税合计[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'合计金额[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'Total[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'￥(\d+(?:,\d{3})*(?:\.\d{2})?)',
+            r'价税合计[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'合计金额[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'Total[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'￥(\d+(?:,\d{3,})*(?:\.\d{2})?)',
         ]
         for pattern in amount_patterns:
             match = re.search(pattern, full_text)
@@ -465,9 +542,9 @@ class InvoiceOCRTool:
 
         # 6. 税额提取
         tax_patterns = [
-            r'税额[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'增值税[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'Tax[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
+            r'税额[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'增值税[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'Tax[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
         ]
         for pattern in tax_patterns:
             match = re.search(pattern, full_text)
@@ -478,7 +555,7 @@ class InvoiceOCRTool:
         # 如果没有找到明确的税额，尝试计算
         if '合计金额' in extracted_fields and '税额' not in extracted_fields:
             # 尝试找到不含税金额
-            for pattern in [r'不含税金额[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)']:
+            for pattern in [r'不含税金额[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)']:
                 match = re.search(pattern, full_text)
                 if match:
                     try:
@@ -698,10 +775,10 @@ class InvoiceOCRTool:
 
         # 5. 金额提取
         amount_patterns = [
-            r'价税合计[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'合计金额[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'Total[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'￥(\d+(?:,\d{3})*(?:\.\d{2})?)',
+            r'价税合计[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'合计金额[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'Total[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'￥(\d+(?:,\d{3,})*(?:\.\d{2})?)',
         ]
         for pattern in amount_patterns:
             match = re.search(pattern, full_text)
@@ -711,9 +788,9 @@ class InvoiceOCRTool:
 
         # 6. 税额提取
         tax_patterns = [
-            r'税额[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'增值税[:：]?\s*￥?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
-            r'Tax[:：]?\s*￥?\s*(\d+(?:,\d{3}*(?:\.\d{2})?)',
+            r'税额[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'增值税[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
+            r'Tax[:：]?\s*￥?\s*(\d+(?:,\d{3,})*(?:\.\d{2})?)',
         ]
         for pattern in tax_patterns:
             match = re.search(pattern, full_text)

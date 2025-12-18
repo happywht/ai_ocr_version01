@@ -31,9 +31,24 @@ class DrawingOCRTool:
         self.logger = logging.getLogger(__name__)
         self.ocr_service_url = ocr_service_url
 
+        # 解析URL获取主机和端口
+        if ocr_service_url.startswith("http://"):
+            host_port = ocr_service_url[7:]  # 移除 "http://"
+        elif ocr_service_url.startswith("https://"):
+            host_port = ocr_service_url[8:]  # 移除 "https://"
+        else:
+            host_port = ocr_service_url
+
+        if ":" in host_port:
+            host, port_str = host_port.split(":", 1)
+            port = int(port_str)
+        else:
+            host = host_port
+            port = 1224  # 默认端口
+
         # 初始化组件
         self.image_optimizer = ImageOptimizer()
-        self.ocr_tool = InvoiceOCRTool(ocr_service_url)
+        self.ocr_tool = InvoiceOCRTool(host, port)  # 修复：正确传递主机和端口
         self.ai_parser = AIInvoiceParser()
 
         # 初始化增强模块
@@ -224,12 +239,22 @@ class DrawingOCRTool:
                     'OCR状态': '失败'
                 }
 
+            # 安全的OCR结果访问函数
+            def safe_get_ocr_result(key, default=''):
+                if hasattr(ocr_result, 'get') and callable(getattr(ocr_result, 'get')):
+                    return ocr_result.get(key, default)
+                elif isinstance(ocr_result, dict):
+                    return ocr_result.get(key, default)
+                else:
+                    self.logger.warning(f"OCR结果格式异常，无法安全访问字段: {key}")
+                    return default
+
             # 第三步：AI智能提取
             self.logger.info("步骤3: AI智能提取...")
             try:
                 # 使用图纸特定的AI提示词
                 ai_result = self.ai_parser.extract_fields_with_config(
-                    ocr_result.get('OCR原始结果', ''),
+                    safe_get_ocr_result('OCR原始结果', ''),
                     self.drawing_config
                 )
 
@@ -241,7 +266,7 @@ class DrawingOCRTool:
                         '解析方式': '🤖 图纸图签AI智能解析',
                         'AI置信度': ai_result.get('ai_confidence', 0.0),
                         '提取字段': ai_result['提取字段'],
-                        'OCR原始结果': ocr_result.get('OCR原始结果'),
+                        'OCR原始结果': safe_get_ocr_result('OCR原始结果'),
                         '优化路径': optimized_path,
                         '原始路径': image_path,
                         'OCR状态': '成功',
@@ -253,8 +278,8 @@ class DrawingOCRTool:
                         '处理时间': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         '解析方式': '图纸图签识别',
                         'AI置信度': 0.0,
-                        '提取字段': ocr_result.get('提取字段', {}),
-                        'OCR原始结果': ocr_result.get('OCR原始结果'),
+                        '提取字段': safe_get_ocr_result('提取字段', {}),
+                        'OCR原始结果': safe_get_ocr_result('OCR原始结果'),
                         '优化路径': optimized_path,
                         '原始路径': image_path,
                         'OCR状态': '成功',
@@ -267,8 +292,8 @@ class DrawingOCRTool:
                     '处理时间': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     '解析方式': '图纸图签识别',
                     'AI置信度': 0.0,
-                    '提取字段': ocr_result.get('提取字段', {}),
-                    'OCR原始结果': ocr_result.get('OCR原始结果'),
+                    '提取字段': safe_get_ocr_result('提取字段', {}),
+                    'OCR原始结果': safe_get_ocr_result('OCR原始结果'),
                     '优化路径': optimized_path,
                     '原始路径': image_path,
                     'OCR状态': '成功',
@@ -330,7 +355,12 @@ class DrawingOCRTool:
 
                 # 裁剪图签区域
                 cropped_image = self._crop_signature_region(image_path, signature_region)
-                optimized_path = self._save_cropped_image(image_path, cropped_image)
+                if cropped_image:
+                    optimized_path = self._save_cropped_image(image_path, cropped_image)
+                    self.logger.info(f"图签区域裁剪成功: {optimized_path}")
+                else:
+                    self.logger.warning("图签区域裁剪失败，使用原图")
+                    optimized_path = image_path
             else:
                 self.logger.warning("未检测到图签区域，使用原图")
                 optimized_path = image_path
@@ -338,6 +368,28 @@ class DrawingOCRTool:
             # 第二步：OCR识别和表格结构提取
             self.logger.info("步骤2: OCR识别和表格结构提取...")
             ocr_result = self.ocr_tool.process_invoice(optimized_path)
+
+            # 安全的OCR结果访问函数 - 修复版
+            def safe_get_ocr_result_enhanced(key, default=''):
+                """安全的OCR结果访问函数 - 修复版"""
+                if ocr_result is None:
+                    self.logger.warning("OCR结果为None")
+                    return default
+
+                # 直接访问InvoiceResult对象的属性
+                if hasattr(ocr_result, 'full_text'):
+                    if key == 'OCR原始结果':
+                        return ocr_result.full_text
+                    elif hasattr(ocr_result, key):
+                        return getattr(ocr_result, key, default)
+
+                # 如果不是InvoiceResult对象，尝试字典访问
+                if isinstance(ocr_result, dict) and hasattr(ocr_result, 'get'):
+                    return ocr_result.get(key, default)
+
+                self.logger.warning(f"无法访问OCR结果字段: {key}")
+                return default
+
             table_structure = self._extract_table_structure(image_path, signature_region)
 
             # 第三步：手写签名识别和匹配
@@ -359,7 +411,7 @@ class DrawingOCRTool:
                 '解析方式': '🤖 图纸图签增强AI解析',
                 'AI置信度': 100.0,  # 增强模式默认高置信度
                 '提取字段': final_fields,
-                'OCR原始结果': ocr_result.get('OCR原始结果', ''),
+                'OCR原始结果': safe_get_ocr_result_enhanced('OCR原始结果', ''),
                 '表格结构': table_structure,
                 '签名匹配': signature_matches,
                 '图签区域': signature_region,
@@ -407,20 +459,55 @@ class DrawingOCRTool:
     def _crop_signature_region(self, image_path: str, signature_region: Tuple[int, int, int, int]) -> Image.Image:
         """裁剪图签区域"""
         try:
-            with Image.open(image_path) as img:
-                left, top, right, bottom = signature_region
+            # 检查是否为PDF文件
+            if image_path.lower().endswith('.pdf'):
+                self.logger.info("检测到PDF文件，使用OCR工具的PDF渲染功能")
+                # 对于PDF文件，我们需要先渲染为图像，然后裁剪
+                try:
+                    import pypdfium2 as pdfium
+                    import io
 
-                # 添加边距
-                margin = 10
-                left = max(0, left - margin)
-                top = max(0, top - margin)
-                right = min(img.width, right + margin)
-                bottom = min(img.height, bottom + margin)
+                    # 打开PDF文件
+                    pdf = pdfium.PdfDocument(image_path)
+                    page = pdf[0]
 
-                return img.crop((left, top, right, bottom))
+                    # 渲染页面为图像
+                    bitmap = page.render(
+                        scale=4.0,  # 高分辨率
+                        crop=(0, 0, 0, 0),
+                        rotation=0,
+                        grayscale=False,
+                    )
+
+                    # 转换为PIL Image
+                    img = bitmap.to_pil()
+                    pdf.close()
+
+                    self.logger.info(f"PDF渲染成功，图像尺寸: {img.size}")
+
+                except Exception as pdf_error:
+                    self.logger.error(f"PDF渲染失败: {pdf_error}")
+                    # 如果PDF渲染失败，返回原图
+                    return None
+            else:
+                # 对于图片文件，直接打开
+                img = Image.open(image_path)
+
+            # 进行裁剪
+            left, top, right, bottom = signature_region
+
+            # 添加边距
+            margin = 10
+            left = max(0, left - margin)
+            top = max(0, top - margin)
+            right = min(img.width, right + margin)
+            bottom = min(img.height, bottom + margin)
+
+            return img.crop((left, top, right, bottom))
+
         except Exception as e:
             self.logger.error(f"裁剪图签区域失败: {e}")
-            return Image.open(image_path)
+            return None
 
     def _save_cropped_image(self, image_path: str, cropped_image: Image.Image) -> str:
         """保存裁剪后的图像"""
@@ -589,8 +676,14 @@ class DrawingOCRTool:
                                       signature_matches: Dict[str, Any]) -> Dict[str, str]:
         """结合签名匹配结果提取字段"""
         try:
-            # 获取OCR提取的字段
-            ocr_fields = ocr_result.get('提取字段', {})
+            # 安全获取OCR提取的字段
+            if hasattr(ocr_result, 'get') and callable(getattr(ocr_result, 'get')):
+                ocr_fields = ocr_result.get('提取字段', {})
+            elif isinstance(ocr_result, dict):
+                ocr_fields = ocr_result.get('提取字段', {})
+            else:
+                self.logger.warning("OCR结果格式异常，使用空字段字典")
+                ocr_fields = {}
 
             # 增强字段信息，添加签名匹配结果
             enhanced_fields = ocr_fields.copy()
@@ -615,7 +708,14 @@ class DrawingOCRTool:
 
         except Exception as e:
             self.logger.error(f"字段提取失败: {e}")
-            return ocr_result.get('提取字段', {})
+            # 安全返回字段
+            if hasattr(ocr_result, 'get') and callable(getattr(ocr_result, 'get')):
+                return ocr_result.get('提取字段', {})
+            elif isinstance(ocr_result, dict):
+                return ocr_result.get('提取字段', {})
+            else:
+                self.logger.warning("OCR结果格式异常，返回空字段字典")
+                return {}
 
     def train_signature_model(self, training_data_path: str) -> bool:
         """
