@@ -157,3 +157,63 @@ screenshots/
 # 打包输出
 dist/
 build/
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 测试文件
+test_*.py
+*_test.py
+debug_*.py
+demo_*.py
+fix_*.py
+
+# 临时和缓存文件
+*.tmp
+*.temp
+*.cache
+*.bak
+*.backup
+nul
+
+# 日志文件
+*.log
+*.log.*
+
+# Excel测试文件
+test_*.xlsx
+
+# JSON测试报告
+*_test_report*.json
+test_*.json
+
+# 签名相关文件
+signatures_*.db
+signature_database.db
+demo_signatures.db
+
+# 临时配置文件
+peizhi001.jsonbak
+
+# 中文文件名（Windows系统）
+*功能*.md
+*指南*.md
+*总结*.md
+*说明*.md
+启动*.py
+快速*.py
+推送*.bat
+
+# 批处理文件
+*.bat
+
+# PyInstaller相关
+*.manifest
+*.spec
+build_exe.py
+
+# 系统崩溃文件
+*.stackdump
+*.exe.stackdump
