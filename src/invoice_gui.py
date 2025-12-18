@@ -15,8 +15,19 @@ from datetime import datetime
 from PIL import Image, ImageTk
 import io
 import base64
+
+# 设置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 from invoice_ocr_tool import InvoiceOCRTool
 from excel_exporter import ExcelExporter
+
+# 导入增强图签识别工具
+try:
+    from drawing_ocr_tool import DrawingOCRTool
+    DRAWING_OCR_AVAILABLE = True
+except ImportError:
+    DRAWING_OCR_AVAILABLE = False
 
 # 导入字段配置管理器
 try:
@@ -38,10 +49,26 @@ class InvoiceOCRGUI:
         # 设置窗口图标和样式
         self.setup_styles()
 
-        # 初始化OCR工具 (默认启用AI)
+        # 初始化OCR工具变量
+        self.ocr_tool = None
+        self.drawing_ocr_tool = None
+        self.drawing_mode = False  # 默认发票模式
+        self.ai_enabled = False
+
+        # 初始化OCR工具 (默认发票模式，启用AI)
         try:
             self.ocr_tool = InvoiceOCRTool(use_ai=True)
             self.ai_enabled = self.ocr_tool.use_ai
+
+            # 初始化图签识别工具
+            if DRAWING_OCR_AVAILABLE:
+                try:
+                    self.drawing_ocr_tool = DrawingOCRTool()
+                    logger.info("增强图签识别工具已启用")
+                except Exception as e:
+                    logger.warning(f"图签识别工具初始化失败: {e}")
+                    self.drawing_ocr_tool = None
+
         except Exception as e:
             messagebox.showerror("初始化错误", f"OCR工具初始化失败:\n{str(e)}")
             self.root.destroy()
@@ -348,13 +375,21 @@ class InvoiceOCRGUI:
                                        style='Primary.TButton')
         self.recognize_btn.grid(row=0, column=0, padx=(0, 10))
 
+        # 图签识别模式切换按钮
+        if self.drawing_ocr_tool is not None:
+            self.drawing_mode_var = tk.BooleanVar(value=False)
+            drawing_toggle = ttk.Checkbutton(button_frame, text="📐 图签识别模式",
+                                              variable=self.drawing_mode_var,
+                                              command=self.toggle_drawing_mode)
+            drawing_toggle.grid(row=0, column=1, padx=(0, 5))
+
         # AI切换按钮 (仅AI版本显示)
         if self.ai_enabled:
             self.ai_toggle_var = tk.BooleanVar(value=True)
             ai_toggle = ttk.Checkbutton(button_frame, text="🤖 启用AI智能解析",
                                        variable=self.ai_toggle_var,
                                        command=self.toggle_ai_mode)
-            ai_toggle.grid(row=0, column=1, padx=(0, 10))
+            ai_toggle.grid(row=0, column=2, padx=(0, 10))
 
         # 导出按钮
         export_btn = ttk.Button(button_frame, text="💾 导出结果",
@@ -532,6 +567,20 @@ class InvoiceOCRGUI:
         status = "启用" if self.ocr_tool.use_ai else "禁用"
         self.progress_var.set(f"🤖 AI智能解析已{status}")
 
+    def toggle_drawing_mode(self):
+        """切换图签识别模式"""
+        self.drawing_mode = self.drawing_mode_var.get()
+        status = "启用" if self.drawing_mode else "禁用"
+        self.progress_var.set(f"📐 图签识别模式已{status}")
+
+        # 更新标题显示
+        if self.drawing_mode:
+            title_text = "📐 图纸图签识别模式 - 增强版"
+            self.root.title(f"{title_text} - 老王特供")
+        else:
+            title_text = "图纸图签OCR识别工具"
+            self.root.title(f"{title_text} - 老王特供")
+
     def start_recognition(self):
         """开始OCR识别"""
         if not self.current_image_path:
@@ -549,8 +598,17 @@ class InvoiceOCRGUI:
                 # 确定文件类型
                 file_type = "PDF" if self.current_image_path.lower().endswith('.pdf') else "图片"
 
-                # 执行OCR识别
-                result = self.ocr_tool.process_invoice(self.current_image_path)
+                # 根据模式选择识别工具
+                if self.drawing_mode and self.drawing_ocr_tool:
+                    # 使用图签识别模式
+                    logger.info("使用增强图签识别模式")
+                    result = self.drawing_ocr_tool.process_drawing_enhanced(
+                        self.current_image_path,
+                        enable_signature_matching=True
+                    )
+                else:
+                    # 使用传统发票识别模式
+                    result = self.ocr_tool.process_invoice(self.current_image_path)
 
                 if result:
                     # 在主线程中更新界面
