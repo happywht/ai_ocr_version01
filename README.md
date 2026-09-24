@@ -1,3 +1,47 @@
+# AI Invoice OCR
+
+A Python utility for extracting structured invoice data from image and PDF files. It combines a local OCR service with optional AI-assisted parsing and supports command-line and desktop workflows.
+
+## Features
+
+- Process common invoice image formats and PDF files.
+- Extract key invoice fields into structured results.
+- Use optional AI-assisted parsing to normalize OCR output.
+- Export results as JSON, text, CSV, or Excel.
+- Handle individual files and batch workflows supported by the application.
+
+## Requirements
+
+- Python 3.7 or newer
+- A compatible local OCR service (the current configuration uses Umi-OCR)
+- Python dependencies listed in `requirements.txt` or `docs/requirements.txt`
+
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python start.py
+```
+
+For the graphical launcher on Windows, run `run.bat`. For command-line usage and OCR service configuration, see the Chinese documentation below and the files in `docs/`.
+
+## Data and credentials
+
+Configure any AI provider credentials locally. Do not commit API keys, real invoices, or other sensitive business documents. Use sanitized examples when reporting issues.
+
+## Related projects
+
+- [CAD Intelligent Extraction Platform](https://github.com/happywht/cadzhinengduqu_pingtai)
+- [DWF2Excel](https://github.com/happywht/dwf2excel)
+
+---
+
+# 专用发票 OCR 识别工具
+
+AI 增强版发票识别工具，支持图片和 PDF，提供命令行与图形界面，并可导出 JSON、CSV 和 Excel。原中文使用说明见下方。
+
+---
+
 # 专用发票OCR识别工具
 
 > 🤖 AI增强版 - 支持图片和PDF的专业发票识别工具
